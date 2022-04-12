@@ -1,29 +1,87 @@
 package mr
 
-import "log"
-import "net"
-import "os"
-import "net/rpc"
-import "net/http"
+import (
+	"fmt"
+	"log"
+	"net"
+	"net/http"
+	"net/rpc"
+	"os"
+)
 
+const (
+	Map = iota
+	Reduce
+)
+
+var numberReduce int
+var inputFileSize int
+var jobId = 0
 
 type Coordinator struct {
+	finish           int
+	completedFile    map[int]bool
+	completedReduce  map[int]bool
+	outputFile       []string
+	intermediateFile []string
+	mapJob           chan *Reply
+	reduceJob        chan *Reply
 	// Your definitions here.
+}
 
+type Reply struct {
+	JobType   int
+	Filename  []string
+	MapNum    int
+	ReduceNum int
 }
 
 // Your code here -- RPC handlers for the worker to call.
+func (c *Coordinator) Distribute(request *Request, reply *Reply) error {
+	if c.finish < inputFileSize {
+		reply.JobType = Map
 
-//
-// an example RPC handler.
-//
-// the RPC argument and reply types are defined in rpc.go.
-//
-func (c *Coordinator) Example(args *ExampleArgs, reply *ExampleReply) error {
-	reply.Y = args.X + 1
+	} else if c.finish == inputFileSize {
+		reply.JobType = Reduce
+
+	}
+}
+
+func (c *Coordinator) MakeMapJob(fileName []string) error {
+	if len(fileName) <= 0 {
+		return "There is no input file"
+	}
+	for _, file := range fileName {
+		id := c.genId(0)
+		reply := Reply{
+			JobType:   Map,
+			Filename:  []string{file},
+			MapNum:    id,
+			ReduceNum: -1,
+		}
+		c.mapJob <- &reply
+	}
+	fmt.Println("MapJobs have already created")
 	return nil
 }
 
+func (c *Coordinator) genId(flag int) (id int) {
+	if flag == 1 {
+		jobId = 0
+	}
+	jobId++
+	return jobId
+}
+
+//save the number of Map workers, send Reduce Number back
+func (c *Coordinator) Init(nmap int, nReduce *int) error {
+	numberMap = nmap
+	if numberReduce == 0 {
+		return "no nReduce info"
+	}
+	nReduce = new(numberReduce)
+	return nil
+}
 
 //
 // start a thread that listens for RPCs from worker.go
@@ -50,7 +108,6 @@ func (c *Coordinator) Done() bool {
 
 	// Your code here.
 
-
 	return ret
 }
 
@@ -61,9 +118,9 @@ func (c *Coordinator) Done() bool {
 //
 func MakeCoordinator(files []string, nReduce int) *Coordinator {
 	c := Coordinator{}
-
+	inputFileSize = len(files)
 	// Your code here.
-
+	numberReduce = nReduce
 
 	c.server()
 	return &c
