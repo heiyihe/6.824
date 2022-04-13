@@ -15,6 +15,7 @@ import (
 	"log"
 	"os"
 	"plugin"
+	"time"
 
 	"6.824/mr"
 )
@@ -27,8 +28,10 @@ func main() {
 
 	mapf, reducef := loadPlugin(os.Args[1])
 
-	mr.Worker(mapf, reducef)
 	fmt.Println("Worker has started successfully\n")
+	time.Sleep(time.Second)
+	mr.Worker(mapf, reducef)
+
 }
 
 //
